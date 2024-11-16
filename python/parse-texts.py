@@ -57,14 +57,55 @@ def parse_equals(line):
         return
     if (header in data.Pos):
         pos = data.Pos(header)
-        if (word.pos is not None and word.pos is not pos ):
+        if (word.pos is not pos.UNSET and word.pos is not pos ):
             complete_word(word)
+            word.form = data.Form.UNSET
+            word.tags = []
         word.pos = data.Pos(header)
+        if (pos in (data.Pos.NOUN, data.Pos.PROPER_NOUN)):
+            word.form = data.Form.SINGULAR
+        elif (pos is data.Pos.VERB):
+            word.form = data.Form.PLURAL
         #print (word)
     
+"""Read a template and add that information to the word"""
+def parse_template(line):
+    global word
+    contents = re.match("{{([^}]*)", line).group(1)
+    parts = contents.split("|")
+    base = parts[0]
+    if (base == "infl of"):
+        if (len(parts) < 5):
+            return
+        qual = parts[4] 
+        if (qual in ("s-verb-form", "st-form")):
+            word.form = data.Form.SINGULAR
+        elif (qual in ("ing-form")):
+            word.form = data.Form.GERUND
+        if (qual in ("ed-form")):
+            word.form = data.Form.UNSET            
+        else:
+            pass
+    elif (base == "head"):
+        qual = parts[2]
+        if (qual.endswith("noun form")):
+            #this is probably mostly true
+            word.form = data.Form.PLURAL
+        else:
+            pass
+    elif (base == "lb"):
+        tags = parts[2:]
+        for tag in tags:
+            if (tag in data.Tag):
+                tag = data.Tag(tag)
+                if (tag not in word.tags):
+                    word.tags.append(tag)
+    else:
+        #print (base + " not parsed")
+        pass
 
         
-"""read in a line, creating a word from the information read"""
+"""Read in a line, creating a word from the information read"""
 def parse_line(line):
     line = line.strip()
     global word
@@ -75,6 +116,8 @@ def parse_line(line):
         word = data.Word(head=head)
     elif (line.startswith('=')):
         parse_equals(line)
+    elif (line.startswith('{')):
+        parse_template(line)
         
 
 with open(wtsource) as wthandle:
