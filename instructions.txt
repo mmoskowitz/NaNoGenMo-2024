@@ -1,0 +1,40 @@
+Download wiktionary article dump
+Place in ./ignore
+Decompress with bunzip2
+
+$ mkdir ./ignore/pages
+$ cd  ./ignore/pages
+$ grep '<page>' $pagesfile | wc -l #this is the count
+$ csplit -k -n 10 ../$pagesfile '/.*<page>.*/' '{$count}' #Hi Zalgo!
+$ for i in 0 1 2 3 4 5 6 7 8 9; do for j in 0 1 2 3 4 5 6 7 8 9; do for k in 0 1 2 3 4 5 6 7 8 9; do echo ${i}${j}${k}; mkdir ${i}${j}${k}; mv xx*${i}${j}${k} ./${i}${j}${k}/; done; done; done #several hours
+$ mkdir ../en-pages
+$ for i in *; do mkdir ../en-pages/$i; done
+$ for i in *; do echo $i; for j in `grep -srl '==English==' $i`; do mv $j ../en-pages/${j}.xml; done; done # just over an hour
+
+5.0G	en-pages
+ 33G	pages
+9.8G	used
+
+$ cd ..
+$ rm -rf pages
+$ mkdir lemmata
+$ cd lemmata
+
+$ for i in ../en-pages/*; do echo $i; for j in $i/*.xml; do ../../python/english-from-pages.py $j; done; done # 11 hours
+
+$ mkdir ../texts
+$ cd ../texts
+$ rm alltext.txt; for i in ../lemmata/*.txt; do echo $i; cat $i | grep . >> alltext.txt; done # 1 hour 20 minutes
+$ sed 's/{{/\n{{/g' alltext.txt | sed 's/}}/}}\n/g' > nltext.txt # 12 seconds
+$ grep '^[=\{\}]' nltext.txt > alltags.txt # seconds
+$ ../../python/clean-alltags.py alltags.txt > cleaned_temp0.txt # 42 seconds
+$ sed 's/=====/==\n===/g' cleaned_temp0.txt cleaned_temp1.txt # seconds
+$ sed 's/English==.*/English==/g' cleaned_temp1.txt >  cleaned_temp2.txt #seconds
+$ mv cleaned_temp2.txt > cleaned.txt # 0
+./parse-texts.py ../ignore/texts/cleaned.txt > ../ignore/texts/parsed.txt # seconds
+###CUT POINT
+
+$ ../../source/python/clean-alltext.py nltext.txt > cleaned.txt
+$ ../../source/python/parse-alltext.py cleaned.txt  > parsed.csv
+$ ../../source/python/versifier.py parsed.csv 10000 > novel.txt
+
