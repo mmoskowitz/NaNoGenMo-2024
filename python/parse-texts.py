@@ -12,17 +12,33 @@ rlsource = "/Users/marc/Documents/code/lib/readlex/kingsleyreadlexicon.tsv"
 
 wtsource = sys.argv[1]
 
-rldict = {}
+def create_rldict(rlsource):
+    rldict = {}
 
-with open(rlsource) as rlhandle:
-    rltsv = csv.reader(rlhandle, delimiter="\t")
-    for row in rltsv:
-        rlitem = (row[1], row[2], row[4]) #shavian, pos, freq 
-        #if (row[0] in rldict):
-        #    print (row[0])
-        rldict[row[0]] = rlitem
+    with open(rlsource) as rlhandle:
+        rltsv = csv.reader(rlhandle, delimiter="\t")
+        for row in rltsv:
+            rlitem = (row[1], row[2], row[4]) #shavian, pos, freq
+            pos = data.Pos.c5_to_pos(rlitem[1])
+            rldict[row[0]] = rlitem
+            rldict[(row[0], pos)] = rlitem
+    return rldict
+
+rldict = create_rldict(rlsource)
 
 word = data.Word()
+
+def get_rldict_word(rldict, word):
+    head = word.head
+    pos = word.pos
+    if ((head, pos) in rldict):
+        return rldict[(head, pos)]
+    elif (head in rldict):
+        return rldict[head]
+    elif ((head.lower(),pos) in rldict and pos is data.Pos.PROPER_NOUN):
+        return rldict[(head.lower(), pos)]
+    else:
+        return None
 
 """Compile sources of information to complete our information for a word"""
 def complete_word(word):
@@ -31,19 +47,12 @@ def complete_word(word):
         return
     if (' ' in head):
         return
-    lhead = word.head.lower()
-    if (head in rldict):
-        word.shav = rldict[head][0]
-    #elif (word.shav):
-        #convert ipa
-    #    pass
-    elif (lhead in rldict):
-        rlitem = rldict[lhead]
-        if (rlitem[1] == "NP0"): #proper nouns only
-            shav = rldict[lhead][0]
-            if (not (shav.startswith("·"))):
-                shav = "·" + shav
-            word.shav = shav
+    rlitem = get_rldict_word(rldict, word)
+    if (rlitem is not None):
+        if (word.pos is data.Pos.PROPER_NOUN):
+            word.shav = "." + rlitem[0]
+        else:
+            word.shav = rlitem[0]
     freq = wordfreq.zipf_frequency(head, "en")
     word.freq = freq
     if (word.shav is not None and word.freq > 0.00):
@@ -123,8 +132,4 @@ def parse_line(line):
 with open(wtsource) as wthandle:
     for wtline in wthandle:
         parse_line(wtline)
-        
-        
 
-print (len(rldict))
-        

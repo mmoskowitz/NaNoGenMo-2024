@@ -33,3 +33,4 @@ $ sed 's/English==.*/English==/g' cleaned_temp1.txt >  cleaned_temp2.txt #second
 $ mv cleaned_temp2.txt cleaned.txt # 0
 $ cd ../../python
 $ ./parse-texts.py ../ignore/texts/cleaned.txt > ../ignore/texts/parsed.txt # seconds
+$ sort -k4 -r -n ../ignore/texts/parsed.txt > ../ignore/texts/sorted.txt #seconds
