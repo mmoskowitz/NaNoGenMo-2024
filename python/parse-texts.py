@@ -33,8 +33,8 @@ def get_rldict_word(rldict, word):
     pos = word.pos
     if ((head, pos) in rldict):
         return rldict[(head, pos)]
-    elif (head in rldict):
-        return rldict[head]
+    #elif (head in rldict):
+    #    return rldict[head]
     elif ((head.lower(),pos) in rldict and pos is data.Pos.PROPER_NOUN):
         return rldict[(head.lower(), pos)]
     else:
@@ -69,6 +69,7 @@ def parse_equals(line):
         if (word.pos is not pos.UNSET and word.pos is not pos ):
             complete_word(word)
             word.form = data.Form.UNSET
+            word.shav = None
             word.tags = []
         word.pos = data.Pos(header)
         if (pos in (data.Pos.NOUN, data.Pos.PROPER_NOUN)):

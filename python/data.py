@@ -25,6 +25,7 @@ class Pos(Feature):
     ADVERB = "Adverb"
     ARTICLE = "Article"
     CONJUNCTION = "Conjunction"
+    CONTRACTION = "Contraction"
     DETERMINER = "Determiner"
     INTERJECTION = "Interjection" 
     NOUN = "Noun"
@@ -37,6 +38,8 @@ class Pos(Feature):
 
     @classmethod
     def c5_to_pos(cls, code):
+        if ('+' in code):
+            return Pos.CONTRACTION
         subcode = code[0:2]
         if (subcode in C5_DICT):
             return C5_DICT[subcode]
@@ -54,7 +57,7 @@ C5_DICT = {
     "NN": Pos.NOUN,
     "NP": Pos.PROPER_NOUN,
     "OR": Pos.NUMERAL,
-    "PN": Pos.PROPER_NOUN,
+    "PN": Pos.PRONOUN,
     "PO": Pos.NOUN,
     "PR": Pos.PREPOSITION,
     "PU": Pos.UNSET, #punctuation
