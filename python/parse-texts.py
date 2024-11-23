@@ -5,12 +5,28 @@ import sys, re, copy, csv
 #third-party
 import wordfreq
 #local
-import data
+from data import Word, Pos, Form, Tag
 
 rlsource = "/Users/marc/Documents/code/lib/readlex/kingsleyreadlexicon.tsv"
+animalsource = "/Users/marc/Documents/code/NaNoGenMo-2024/sources/animals.txt"
 #rlsource = "/Users/marc/Documents/code/NaNoGenMo-2024/ignore/lib/krsample.tsv"
 
 wtsource = sys.argv[1]
+corpora = {}
+verb_list = {}
+
+"""Reads in a word list and saves it to corpora"""
+def read_corpus(corpora, filename, tag):
+    list = []
+    with open(filename) as handle:
+        for line in handle:
+            line = line.strip()
+            if line.startswith("#"):
+                continue
+            list.append(line)
+    corpora[tag] = list
+
+read_corpus(corpora, animalsource, Tag.ANIMAL)
 
 def create_rldict(rlsource):
     rldict = {}
@@ -19,14 +35,14 @@ def create_rldict(rlsource):
         rltsv = csv.reader(rlhandle, delimiter="\t")
         for row in rltsv:
             rlitem = (row[1], row[2], row[4]) #shavian, pos, freq
-            pos = data.Pos.c5_to_pos(rlitem[1])
+            pos = Pos.c5_to_pos(rlitem[1])
             rldict[row[0]] = rlitem
             rldict[(row[0], pos)] = rlitem
     return rldict
 
 rldict = create_rldict(rlsource)
 
-word = data.Word()
+word = Word()
 
 def get_rldict_word(rldict, word):
     head = word.head
@@ -35,7 +51,7 @@ def get_rldict_word(rldict, word):
         return rldict[(head, pos)]
     #elif (head in rldict):
     #    return rldict[head]
-    elif ((head.lower(),pos) in rldict and pos is data.Pos.PROPER_NOUN):
+    elif ((head.lower(),pos) in rldict and pos is Pos.PROPER_NOUN):
         return rldict[(head.lower(), pos)]
     else:
         return None
@@ -49,13 +65,22 @@ def complete_word(word):
         return
     rlitem = get_rldict_word(rldict, word)
     if (rlitem is not None):
-        if (word.pos is data.Pos.PROPER_NOUN):
+        if (word.pos is Pos.PROPER_NOUN):
             word.shav = "." + rlitem[0]
         else:
             word.shav = rlitem[0]
     freq = wordfreq.zipf_frequency(head, "en")
     word.freq = freq
+    if (word.pos is Pos.NOUN):
+        #check tags
+        for tag in corpora:
+            if (word.head in corpora[tag]):
+                word.tags.append(tag)
     if (word.shav is not None and word.freq > 0.00):
+        if (word.pos is Pos.VERB):
+            if (word.head not in verb_list):
+                verb_list[word.head] = word
+                #print ("adding " + word.head + " to verb_list: " + str(word))
         print(word)
     
 """Read a line starting with = other than Lemma: and add that information to the word"""
@@ -64,20 +89,33 @@ def parse_equals(line):
     header = re.match("=+([^=]+)=+", line).group(1)
     if (header == "English"):
         return
-    if (header in data.Pos):
-        pos = data.Pos(header)
+    if (header in Pos):
+        pos = Pos(header)
         if (word.pos is not pos.UNSET and word.pos is not pos ):
             complete_word(word)
-            word.form = data.Form.UNSET
+            word.form = Form.UNSET
             word.shav = None
             word.tags = []
-        word.pos = data.Pos(header)
-        if (pos in (data.Pos.NOUN, data.Pos.PROPER_NOUN)):
-            word.form = data.Form.SINGULAR
-        elif (pos is data.Pos.VERB):
-            word.form = data.Form.PLURAL
+        word.pos = Pos(header)
+        if (pos in (Pos.NOUN, Pos.PROPER_NOUN)):
+            word.form = Form.SINGULAR
+        elif (pos is Pos.VERB):
+            word.form = Form.PLURAL
         #print (word)
+
+"""Adds any Tag whose value is in tags to the current word"""
+def add_tag_list(tags):
+    global word
+    for tag in tags:
+        if (tag in Tag):
+            tag = Tag(tag)
+            tag_word(tag)
     
+def tag_word(tag):
+    global word
+    if (tag not in word.tags):
+        word.tags.append(tag)
+        
 """Read a template and add that information to the word"""
 def parse_template(line):
     global word
@@ -87,29 +125,37 @@ def parse_template(line):
     if (base == "infl of"):
         if (len(parts) < 5):
             return
-        qual = parts[4] 
+        root = parts[2]
+        qual = parts[4]
+        if (word.pos is Pos.VERB and root in verb_list):
+            #print ("found root " + root)
+            tags = verb_list[root].tags
+            add_tag_list(tags)
         if (qual in ("s-verb-form", "st-form")):
-            word.form = data.Form.SINGULAR
+            word.form = Form.SINGULAR
         elif (qual in ("ing-form")):
-            word.form = data.Form.GERUND
+            word.form = Form.GERUND
         if (qual in ("ed-form")):
-            word.form = data.Form.UNSET            
+            word.form = Form.UNSET            
         else:
             pass
     elif (base == "head"):
         qual = parts[2]
         if (qual.endswith("noun form")):
             #this is probably mostly true
-            word.form = data.Form.PLURAL
+            word.form = Form.PLURAL
         else:
             pass
     elif (base == "lb"):
         tags = parts[2:]
-        for tag in tags:
-            if (tag in data.Tag):
-                tag = data.Tag(tag)
-                if (tag not in word.tags):
-                    word.tags.append(tag)
+        add_tag_list(tags)
+    elif (base == "taxfmt"):
+        tag_word(Tag.ORGANISM)
+    elif (base == "given name"):
+        tag_word(Tag.GIVEN_NAME)
+    elif (base == "C"):
+        tags = parts[2:]
+        add_tag_list(tags)
     else:
         #print (base + " not parsed")
         pass
@@ -123,7 +169,7 @@ def parse_line(line):
         if (word):
             complete_word(word)
         head = line.removeprefix('=Lemma:=')
-        word = data.Word(head=head)
+        word = Word(head=head)
     elif (line.startswith('=')):
         parse_equals(line)
     elif (line.startswith('{')):

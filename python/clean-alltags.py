@@ -141,7 +141,6 @@ skipconts = [
     '{{&amp;lit',
     '{{+preo',
     '{{AD',
-    '{{C|',
     '{{CE',
     '{{IPA',
     '{{Latin letter',
@@ -363,7 +362,9 @@ keepconts = [
     '{{la-praenomen',
     '{{alt case',
     '{{lb|',
+    '{{taxfmt|',
     'form of|',
+    '{{C|',
 ]
 
 filename = sys.argv[1]

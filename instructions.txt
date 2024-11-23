@@ -19,12 +19,12 @@ $ cd ..
 $ rm -rf pages
 $ mkdir lemmata
 $ cd lemmata
-
 $ for i in ../en-pages/*; do echo $i; for j in $i/*.xml; do ../../python/english-from-pages.py $j; done; done # 11 hours
-
+$ mkdir ../infls
+$ for i in `grep -srl 'infl of' .`; do mv $i ../infls/$i; done # 15 minutes
 $ mkdir ../texts
 $ cd ../texts
-$ rm alltext.txt; for i in ../lemmata/*.txt; do echo $i; cat $i | grep . >> alltext.txt; done # 1 hour 20 minutes
+$ rm alltext.txt; for i in ../lemmata/*.txt ../infls/*.txt; do echo $i; cat $i | grep . >> alltext.txt; done # 12 hours (may be affected by computer sleep)
 $ sed 's/{{/\n{{/g' alltext.txt | sed 's/}}/}}\n/g' > nltext.txt # 12 seconds
 $ grep '^[=\{\}]' nltext.txt > alltags.txt # seconds
 $ ../../python/clean-alltags.py alltags.txt > cleaned_temp0.txt # 42 seconds

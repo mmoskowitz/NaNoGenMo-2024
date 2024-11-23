@@ -85,8 +85,12 @@ class Tag(Feature):
     OFFENSIVE = "offensive"
     PEJORATIVE = "pejorative"
     ETHNIC_SLUR = "ethnic slur"
-    
-        
+    ANIMAL = "animal"
+    PEOPLE = "People"
+    OCCUPATIONS = "Occupations"
+    ORGANISM = "organism"
+    GIVEN_NAME = "given name"
+
 @dataclass
 class Word:
     head: str = None
@@ -98,6 +102,7 @@ class Word:
     
     def __str__(self):
         return "\t".join((self.head, self.shav, self.pos.name, str(self.freq), self.form.name, ",".join((tag.name for tag in self.tags))))
+
 
     """Read in a word from the item in print(word)"""
     @classmethod
@@ -115,3 +120,19 @@ class Word:
                     if (tag in Tag._member_names_):
                         tags.append(Tag[tag])
             return Word(row[0], row[1], pos, freq, form, tags)
+
+@dataclass
+class Text:
+    words: list[Word] = field(default_factory=list)
+
+    def __str__(self):
+        return " ".join([word.shav for word in self.words]) + ".\n" + " ".join([word.head for word in self.words]) + "."
+
+    def add_word(self, word):
+        self.words.append(word)
+
+    @classmethod
+    def get_article(word):
+        pass
+        
+        
