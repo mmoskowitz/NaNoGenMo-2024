@@ -32,7 +32,7 @@ $ sed 's/=====/==\n===/g' cleaned_temp0.txt > cleaned_temp1.txt # seconds
 $ sed 's/English==.*/English==/g' cleaned_temp1.txt >  cleaned_temp2.txt #seconds
 $ mv cleaned_temp2.txt cleaned.txt # 0
 $ cd ../../python
-$ ./parse-texts.py ../ignore/texts/cleaned.txt > ../ignore/parsed.txt # seconds
+$ ./parse-texts.py ../ignore/texts/cleaned.txt > ../ignore/texts/parsed.txt # seconds
 $ sort -k4 -r -n ../ignore/texts/parsed.txt | uniq > ../ignore/texts/sorted.txt #seconds
 
 Run https://petscan.wmcloud.org/?maxlinks=&labels_any=&edits%5Banons%5D=both&langs_labels_yes=&output_compatability=catscan&search_wiki=&namespace_conversion=keep&wikidata_item=no&show_disambiguation_pages=both&larger=&project=wikipedia&langs_labels_no=&links_to_any=&output_limit=&wikidata_label_language=&depth=4&links_to_all=&search_max_results=500&categories=Species_by_IUCN_Red_List_category&pagepile=&combination=subset&max_sitelink_count=&langs_labels_any=&links_to_no=&language=en&ns%5B0%5D=1&before=&show_redirects=both&cb_labels_yes_l=1&max_age=&ores_type=any&cb_labels_no_l=1&search_query=&cb_labels_any_l=1&page_image=any&interface_language=en&active_tab=tab_categories&referrer_url=&templates_no=&rxp_filter=
