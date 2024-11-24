@@ -75,7 +75,7 @@ def complete_word(word):
         #check tags
         for tag in corpora:
             if (word.head in corpora[tag]):
-                word.tags.append(tag)
+                word.tags.add(tag)
     if (word.shav is not None and word.freq > 0.00):
         if (word.pos is Pos.VERB):
             if (word.head not in verb_list):
@@ -95,7 +95,7 @@ def parse_equals(line):
             complete_word(word)
             word.form = Form.UNSET
             word.shav = None
-            word.tags = []
+            word.tags = set()
         word.pos = Pos(header)
         if (pos in (Pos.NOUN, Pos.PROPER_NOUN)):
             word.form = Form.SINGULAR
@@ -114,7 +114,9 @@ def add_tag_list(tags):
 def tag_word(tag):
     global word
     if (tag not in word.tags):
-        word.tags.append(tag)
+        #print (type(word))
+        #print (type(word.tags))
+        word.tags.add(tag)
         
 """Read a template and add that information to the word"""
 def parse_template(line):
@@ -156,6 +158,19 @@ def parse_template(line):
     elif (base == "C"):
         tags = parts[2:]
         add_tag_list(tags)
+    elif (base == "en-noun"):
+        if (len(parts) <= 1):
+            word.tags.add(Tag.COUNTABLE)
+        else:
+            if (parts[1] == "-"):
+                word.tags.add(Tag.UNCOUNTABLE)
+            elif (parts[1] == "~"):
+                add_tag_list((Tag.UNCOUNTABLE, Tag.COUNTABLE))
+            else:
+                word.tags.add(Tag.COUNTABLE)
+
+            if (parts[1] == "p"):
+                word.form = Form.PLURAL
     else:
         #print (base + " not parsed")
         pass

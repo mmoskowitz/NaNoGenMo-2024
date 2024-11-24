@@ -365,6 +365,7 @@ keepconts = [
     '{{taxfmt|',
     'form of|',
     '{{C|',
+    '{{en-noun',
 ]
 
 filename = sys.argv[1]
