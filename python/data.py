@@ -4,6 +4,7 @@
 import sys, re, copy, csv
 from dataclasses import dataclass, field
 from enum import Enum, EnumMeta
+from ordered_enum import OrderedEnum
 
 class MyEnumMeta(EnumMeta):  
     def __contains__(cls, item):
@@ -14,28 +15,28 @@ class MyEnumMeta(EnumMeta):
         else:
             return True
 
-class Feature(Enum, metaclass=MyEnumMeta):
+class Feature(OrderedEnum, metaclass=MyEnumMeta):
 
     def __str__(self):
         return self.value;
 
     
 class Pos(Feature):
-    UNSET = "Unset"
-    ADJECTIVE = "Adjective"
-    ADVERB = "Adverb"
     ARTICLE = "Article"
     CONJUNCTION = "Conjunction"
-    CONTRACTION = "Contraction"
     DETERMINER = "Determiner"
-    INTERJECTION = "Interjection" 
-    NOUN = "Noun"
-    NUMERAL = "Numeral"
-    PARTICIPLE = "Participle"
     PREPOSITION = "Preposition"
     PRONOUN = "Pronoun"
+    NUMERAL = "Numeral"
+    INTERJECTION = "Interjection" 
+    PARTICIPLE = "Participle"
+    ADVERB = "Adverb"
+    ADJECTIVE = "Adjective"
+    CONTRACTION = "Contraction"
+    NOUN = "Noun"
     PROPER_NOUN = "Proper noun"
     VERB = "Verb"
+    UNSET = "Unset"
 
     @classmethod
     def c5_to_pos(cls, code):
@@ -159,18 +160,27 @@ class Word(Token):
 
     def latin_text(self):
         text = ""
-        if (self.text is not None and type(self.text.get_previous(self)) is Word):
+        prev = self.get_previous()
+        if (isinstance (prev, Word)):
             text += " "
         text += self.head
+        if (prev is None):
+            return text.capitalize()
         return text
 
     def shavian_text(self):
         text = ""
-        if (self.text is not None and type(self.text.get_previous(self)) is Word):
+        if (isinstance(self.get_previous(), Word)):
             text += " "
         text += self.shav
         return text
-        
+
+    def get_previous(self):
+        if (self.text is None):
+            return None
+        return self.text.get_previous(self)
+
+    
 @dataclass
 class Text:
     tokens: list[Token] = field(default_factory=list)
@@ -274,6 +284,8 @@ class Lexicon:
 
     @classmethod
     def is_skipped(cls, word):
+        if ("-" in word.head):
+            return True
         for tag in word.tags:
             if tag in cls.SKIP_TAGS:
                 return True
@@ -336,8 +348,10 @@ class Lexicon:
 
     def get_list(self, syntax, letter):
         lex = self.lex
-        syntax_node = lex[syntax]
         list = []
+        if (syntax not in lex):
+            return list
+        syntax_node = lex[syntax]
         if ("1" + letter in syntax_node):
             list.extend(syntax_node["1" + letter])
         if (letter in syntax_node):

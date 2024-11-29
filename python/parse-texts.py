@@ -66,7 +66,7 @@ def complete_word(word):
     rlitem = get_rldict_word(rldict, word)
     if (rlitem is not None):
         if (word.pos is Pos.PROPER_NOUN):
-            word.shav = "." + rlitem[0]
+            word.shav = "·" + rlitem[0]
         else:
             word.shav = rlitem[0]
     freq = wordfreq.zipf_frequency(head, "en")
