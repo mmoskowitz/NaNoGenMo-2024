@@ -131,7 +131,11 @@ class Punctuation(Token):
         return self.get_text()
     def shavian_text(self):
         return self.get_text()
-    
+
+    def read_text(self, text):
+        self.before = text.startswith(" ")
+        self.after = text.endswith(" ")
+        self.string = text.strip()    
     
 @dataclass
 class Word(Token):
@@ -215,9 +219,68 @@ class Text:
         new_token = copy.deepcopy(token)
         new_token.text = self
         self.tokens.append(new_token)
+
+    def read_sentence(self, text, lex):
+        latin_letters = Alphabet.LATIN_LETTERS
+        space_letters = Alphabet.SPACE_LETTERS
+        head_letters = Alphabet.HEAD_LETTERS
+        #split into words and punctuation
+        items = []
+        item = ""
+        for char in text:
+            if (len(item) == 0):
+                item += char
+            elif (char in space_letters):
+                if (item[0] not in head_letters):
+                    item += " "
+                items.append(item)
+                if (item[0] in head_letters):
+                    item = " "
+                else:
+                    item = ""
+            elif (char in head_letters and item[0] in space_letters):
+                item = char
+            else:
+                if (bool(char in head_letters) != bool(item[0] in head_letters)):
+                    items.append(item)
+                    item = char
+                else:
+                    item += char
+        items.append(item)
+
+        for item in items:
+            token = lex.find_word(item)
+            if (token is not None):
+                self.add(token)
+                continue
+            lower_token = lex.find_word(item.lower())
+            if (lower_token is not None):
+                cap_by_position = True #are we at sentence start?
+                for token in self.tokens:
+                    if (isinstance(token, Word)):
+                        cap_by_position = False
+                if (cap_by_position):
+                    self.add(lower_token)
+                    continue
+                else:
+                    proper_token = copy.deepcopy(lower_token)
+                    proper_token.head = item
+                    proper_token.pos = Pos.PROPER_NOUN
+                    self.add(proper_token)
+                    continue
+            #handle possessives
+            if (item.endswith("'") or item.endswith("'s")):
+                #find base
+                #mark as possessive
+                pass
+            print (item + " not found in lexicon")
+        
         
 class Alphabet:
     LETTERS = "𐑐𐑚𐑑𐑛𐑒𐑜𐑓𐑝𐑔𐑞𐑕𐑟𐑖𐑠𐑗𐑡𐑘𐑢𐑙𐑣𐑤𐑮𐑥𐑯𐑦𐑰𐑧𐑱𐑨𐑲𐑩𐑳𐑪𐑴𐑫𐑵𐑬𐑶𐑭𐑷"
+    LATIN_LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+    HEAD_LETTERS = LATIN_LETTERS + "'"
+    SPACE_LETTERS = " "
     LETTER_NAMES = ("peep", "bib", "tot", "dead",
                     "kick", "gag", "fee", "vow",
                     "thigh", "they", "so", "zoo",
@@ -349,6 +412,16 @@ class Lexicon:
                 lex[syntax][letter] = []
             lex[syntax][letter].append(word)
 
+    def find_word(self, head):
+        if re.match("[^" + Alphabet.LATIN_LETTERS + "]", head):
+            token = Punctuation()
+            token.read_text(head)
+            return token
+        elif (head in self.wordlist):
+            return copy.deepcopy(self.wordlist[head])
+        else:
+            return None
+            
 
     def get_list(self, syntax, letter):
         lex = self.lex
@@ -383,3 +456,91 @@ class Lexicon:
                     return found
         return found
 
+
+class Chapter:
+    SENTENCE_ENDS = ".?!:"
+    def __init__(self, title, text, source):
+        self.title = title
+        self.text = text
+        self.paragraphs = [] #made of [sentence = str]
+        self.parsed_texts = [] #made of [text = Text]
+        self.source = source
+        self.decompose_text()
+
+    def decompose_text_to_words(self):
+        text = self.text
+        paragraph = []
+        sentence = ""
+        i = 0;
+        while (i < len(self.text)):
+            char = text[i]
+            if (char in "\n"):
+                if (len(sentence) > 0):
+                    paragraph.append(sentence)
+                    sentence = ""
+                if (len(paragraph) > 0):
+                    self.paragraphs.append(paragraph)
+                    paragraph = []
+                
+            elif (char in Chapter.SENTENCE_ENDS):
+                sentence += char
+                while (text[i+1] in "\"" or text[i+1] in Chapter.SENTENCE_ENDS):
+                    sentence += text[i+1]
+                    i += 1
+                paragraph.append(sentence)
+                sentence = ""
+            elif (char in " "):
+                if (len(sentence) > 0):
+                    sentence += char
+            else:
+                sentence += char
+            i += 1
+        if (len(sentence) > 0):
+            paragraph.append(sentence)
+        if (len(paragraph) > 0):
+            self.paragraphs.append(paragraph)
+
+    def decompose_words_to_texts(self):
+        lex = self.source.lex
+        for paragraph in self.paragraphs:
+            parsed_para = []
+            for sentence in paragraph:
+                text = Text()
+                text.read_sentence(sentence, lex)
+                parsed_para.append(text)
+            self.parsed_texts.append(parsed_para)
+            
+    def decompose_text(self):
+        self.decompose_text_to_words()
+        self.decompose_words_to_texts()
+
+            
+class Source:
+    def __init__(self, lexicon):
+        self.chapters = []
+        self.lex = lexicon
+
+    def read_file(self, filename, title_regex):
+        with open(filename) as fh:
+            text = ""
+            title = None
+            for line in fh:
+                if re.match(title_regex, line):
+                    if (title is not None and len(text) > 1000): #store current chapter
+                        chapter = Chapter(title, text, self)
+                        self.chapters.append(chapter)
+                        #print (title)
+
+                    title  = line.strip()
+                    text = ""
+                else:
+                    line = line.strip()
+                    if (line.startswith("[")):
+                        pass
+                    elif (len(line) == 0):
+                        text += "\n"
+                    else:
+                        text += " " + line
+            #end of file, store last chapter
+            chapter = Chapter(title, text, self)
+            self.chapters.append(chapter)

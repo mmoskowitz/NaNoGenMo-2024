@@ -49,10 +49,13 @@ def get_rldict_word(rldict, word):
     pos = word.pos
     if ((head, pos) in rldict):
         return rldict[(head, pos)]
-    #elif (head in rldict):
-    #    return rldict[head]
-    elif ((head.lower(),pos) in rldict and pos is Pos.PROPER_NOUN):
+    elif ((head.lower(),pos) in rldict
+          and (pos is Pos.PROPER_NOUN
+               or (pos in (Pos.PRONOUN, Pos.CONTRACTION)
+                   and word.head.startswith("I")))):
         return rldict[(head.lower(), pos)]
+    elif (head in rldict):
+        return rldict[head]
     else:
         return None
 
