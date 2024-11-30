@@ -145,6 +145,7 @@ class Word(Token):
     freq: float = 0.0
     form: Form = Form.UNSET
     tags: set[Tag] = field(default_factory=set)
+    possessive: bool = False
     
     def __str__(self):
         return "\t".join((self.head, self.shav, self.pos.name, str(self.freq), self.form.name, ",".join((tag.name for tag in self.tags))))
@@ -172,6 +173,11 @@ class Word(Token):
         if (isinstance (prev, Word)):
             text += " "
         text += self.head
+        if (self.possessive):
+            if (self.form is Form.PLURAL and self.shav[-1] in Alphabet.SIBILANTS):
+                text += "'"
+            else:
+                text += "'s"
         if (prev is None):
             return text.capitalize()
         return text
@@ -181,6 +187,20 @@ class Word(Token):
         if (isinstance(self.get_previous(), Word)):
             text += " "
         text += self.shav
+        if (self.possessive):
+            if (self.form is Form.PLURAL and self.shav[-1] not in Alphabet.SIBILANTS):
+                if (self.shav[-1] in Alphabet.UNVOICED_CONSONANTS):
+                    text += "𐑕"
+                else:
+                    text += "𐑟"
+            else:
+                if (self.shav[-1] in Alphabet.SIBILANTS):
+                    text+= "𐑦𐑟"
+                elif (self.shav[-1] in Alphabet.VOICED_CONSONANTS):
+                    text += "𐑕"
+                else:
+                    text += "𐑟"
+                    
         return text
 
     def get_previous(self):
@@ -271,8 +291,12 @@ class Text:
             #handle possessives
             if (item.endswith("'") or item.endswith("'s")):
                 #find base
-                #mark as possessive
-                pass
+                base_head = item.split("'")[0]
+                poss_token = lex.find_word(base_head)
+                if (poss_token is not None):
+                    poss_token.possessive = True
+                    self.add(poss_token)
+                    continue
             print (item + " not found in lexicon")
         
         
@@ -281,6 +305,8 @@ class Alphabet:
     LATIN_LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
     HEAD_LETTERS = LATIN_LETTERS + "'"
     SPACE_LETTERS = " "
+    SIBILANTS = "𐑕𐑟𐑖𐑠𐑗𐑡"
+    UNVOICED_CONSONANTS = "𐑐𐑑𐑒𐑓𐑔"
     LETTER_NAMES = ("peep", "bib", "tot", "dead",
                     "kick", "gag", "fee", "vow",
                     "thigh", "they", "so", "zoo",
