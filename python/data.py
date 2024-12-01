@@ -598,7 +598,7 @@ class Chapter:
 
     def get_texts_as_list(self):
         list = []
-        #list.append(self.parsed_title)
+        list.append(self.parsed_title)
         for paragraph in self.parsed_texts:
             for text in paragraph:
                 list.append(text)
