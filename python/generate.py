@@ -52,6 +52,9 @@ slash = Punctuation(string="/", before=True, after=True)
 exclamation = Punctuation(string="!")
 comma = Punctuation(string=",")
 
+print ('<html>')
+print ('<head><meta charset="utf-8"></head><body>')
+
 for letter in Alphabet.LETTERS:
     print ("<h1>" + letter + "</h1>")
     title = generate_title(lex, letter)
@@ -179,7 +182,6 @@ for letter in Alphabet.LETTERS:
             print (text.html_text())
         print ("</p>")
     
-        
 
 if (False):
     for letter in Alphabet.LETTERS:
@@ -188,3 +190,6 @@ if (False):
             count = len(lex.get_list((pos,), letter))
             if (count > 0):
                 print (pos, count)
+
+
+print ("</body></html>")
