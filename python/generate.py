@@ -89,9 +89,11 @@ for letter in Alphabet.LETTERS:
     print (sentence.html_text())
     print ("</p>")
 
+
+for letter in Alphabet.LETTERS:
     letter_index = Alphabet.LETTERS.index(letter)
-    chapter = source.chapters[letter_index + 1]
-    print ("<h2>" + chapter.title + "</h2>")
+    chapter = source.chapters[letter_index]
+    print ("<h2>" + chapter.parsed_title.html_text() + "</h2>")
     original_catalog = {} #head: [Word, count]
     for text in chapter.get_texts_as_list():
         for token in text.tokens:
@@ -163,13 +165,14 @@ for letter in Alphabet.LETTERS:
         if (head in replacements):
             #print ("replacing with " + replacements[head].head)
             pass
-    for text in chapter.get_texts_as_list():
-        for i in range(len(text.tokens)):
-            token = text.tokens[i]
-            if (isinstance(token, Word)):
-                old_head = text.tokens[i].head.lower()
-                if (old_head in replacements):
-                    text.set(i, replacements[old_head])
+    if (False):
+        for text in chapter.get_texts_as_list():
+            for i in range(len(text.tokens)):
+                token = text.tokens[i]
+                if (isinstance(token, Word)):
+                    old_head = text.tokens[i].head.lower()
+                    if (old_head in replacements):
+                        text.set(i, replacements[old_head])
     for para in chapter.parsed_texts:
         print ("<p>")
         for text in para:

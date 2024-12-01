@@ -34,7 +34,7 @@ $ mv cleaned_temp2.txt cleaned.txt # 0
 $ cd ../../python
 $ ./parse-texts.py ../ignore/texts/cleaned.txt > ../ignore/texts/parsed.txt # seconds
 $ sort -k4 -r -n ../ignore/texts/parsed.txt | uniq > ../ignore/texts/sorted.txt #seconds
-
+$ ./generate.py ../ignore/texts/sorted.txt ../sources/english-fairy-tales.txt '^[A-Z][^a-z]{4}[^a-z]*[A-Z]$' > ../book.html
 
 ---scratch---
 

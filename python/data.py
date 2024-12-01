@@ -223,7 +223,13 @@ class Word(Token):
         return text
 
     def html_text(self):
-        return "<ruby><rb>" + self.shavian_text() + "</rb><rt>" + self.latin_text()  + "</rt></ruby>"
+        shav = self.shavian_text()
+        html = "<ruby><rb>" + shav.strip() + "</rb><rt>" + self.latin_text().strip()  + "</rt></ruby>"
+        if (shav.startswith(" ")):
+            html = " " + html
+        if (shav.endswith(" ")):
+            html += " "
+        return html
     
 
     def get_previous(self):
@@ -319,7 +325,7 @@ class Text:
                 self.add(token)
             else:
                 #print (item + " not found in lexicon")
-                not_found_msg = "NOT_FOUND_" + item
+                not_found_msg = "{" + item + "}"
                 punc = Punctuation(before=True, string=not_found_msg, after=True)
                 self.add(punc)
                 pass
@@ -327,7 +333,7 @@ class Text:
         
 class Alphabet:
     LETTERS = "𐑐𐑚𐑑𐑛𐑒𐑜𐑓𐑝𐑔𐑞𐑕𐑟𐑖𐑠𐑗𐑡𐑘𐑢𐑙𐑣𐑤𐑮𐑥𐑯𐑦𐑰𐑧𐑱𐑨𐑲𐑩𐑳𐑪𐑴𐑫𐑵𐑬𐑶𐑭𐑷"
-    LATIN_LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+    LATIN_LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzâ"
     HEAD_LETTERS = LATIN_LETTERS + "'"
     SPACE_LETTERS = " "
     SIBILANTS = "𐑕𐑟𐑖𐑠𐑗𐑡"
@@ -419,7 +425,7 @@ class Lexicon:
             skipped = 0
             parsetsv = csv.reader(parsedhandle, delimiter="\t")
             for row in parsetsv:
-                if ('#' in row[0] or len(row) < 3):
+                if (len(row) == 0 or '#' in row[0] or len(row) < 3):
                     continue
                 word = Word.read(row)
                 if (word.head in self.wordlist):
@@ -629,11 +635,13 @@ class Source:
             for line in fh:
                 if re.match(title_regex, line):
                     if (title is not None and len(text) > 1000): #store current chapter
+                        
                         chapter = Chapter(title, text, self)
                         self.chapters.append(chapter)
                         #print (title)
 
                     title  = line.strip()
+                    title = title.replace("#", "")
                     text = ""
                 else:
                     line = line.strip()
