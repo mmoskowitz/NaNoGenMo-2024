@@ -10,7 +10,12 @@ title_regex = sys.argv[2]
 
 lexfile = sys.argv[3]
 lex = Lexicon()
-lex.create_lex(lexfile)
+lex.read_lex(lexfile)
+extrasfile = re.sub('/[^/]+$', '/extras.txt', lexfile)
+lex.read_lex(extrasfile)
+extrasfile = re.sub('/[^/]+$', '/extras.txt', lexfile)
+lex.read_lex(extrasfile)
+
 
             
 source = Source(lex)

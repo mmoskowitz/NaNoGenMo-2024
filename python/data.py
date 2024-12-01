@@ -22,21 +22,21 @@ class Feature(OrderedEnum, metaclass=MyEnumMeta):
 
     
 class Pos(Feature):
+    UNSET = "Unset"
     ARTICLE = "Article"
     CONJUNCTION = "Conjunction"
     DETERMINER = "Determiner"
     PREPOSITION = "Preposition"
     PRONOUN = "Pronoun"
     NUMERAL = "Numeral"
-    INTERJECTION = "Interjection" 
     PARTICIPLE = "Participle"
+    INTERJECTION = "Interjection" 
     ADVERB = "Adverb"
     ADJECTIVE = "Adjective"
     CONTRACTION = "Contraction"
     NOUN = "Noun"
     PROPER_NOUN = "Proper noun"
     VERB = "Verb"
-    UNSET = "Unset"
 
     @classmethod
     def c5_to_pos(cls, code):
@@ -105,6 +105,7 @@ class Text:
 @dataclass
 class Token:
     text: Text = None
+    index: int = 0
 
     def latin_text(self):
         return ""
@@ -122,7 +123,7 @@ class Punctuation(Token):
         text = ""
         if (self.before):
             text += " "
-        text += self.string
+        text += str(self.string)
         if (self.after):
             text += " "
         return text
@@ -132,10 +133,16 @@ class Punctuation(Token):
     def shavian_text(self):
         return self.get_text()
 
+    def html_text(self):
+        return self.get_text()
+
     def read_text(self, text):
         self.before = text.startswith(" ")
         self.after = text.endswith(" ")
-        self.string = text.strip()    
+        self.string = text.strip()
+        
+    def __str__(self):
+        return ("PUNCTUATION: '" + self.get_text() + "'")
     
 @dataclass
 class Word(Token):
@@ -173,6 +180,8 @@ class Word(Token):
         if (isinstance (prev, Word)):
             text += " "
         text += self.head
+        if (self.head == ("a") and self.is_next_vowel()):
+            text += "n"
         if (self.possessive):
             if (self.form is Form.PLURAL and self.shav[-1] in Alphabet.SIBILANTS):
                 text += "'"
@@ -182,11 +191,21 @@ class Word(Token):
             return text.capitalize()
         return text
 
+    def is_next_vowel(self):
+        next_word = self.get_next()
+        if (isinstance(next_word, Word)):
+            next_letter = Alphabet.untie(next_word)[0]
+            if (next_letter in Alphabet.VOWELS):
+                return True
+        return False
+    
     def shavian_text(self):
         text = ""
         if (isinstance(self.get_previous(), Word)):
             text += " "
         text += self.shav
+        if (self.head == ("a") and self.is_next_vowel()):
+            text += "𐑯"
         if (self.possessive):
             if (self.form is Form.PLURAL and self.shav[-1] not in Alphabet.SIBILANTS):
                 if (self.shav[-1] in Alphabet.UNVOICED_CONSONANTS):
@@ -195,18 +214,27 @@ class Word(Token):
                     text += "𐑟"
             else:
                 if (self.shav[-1] in Alphabet.SIBILANTS):
-                    text+= "𐑦𐑟"
-                elif (self.shav[-1] in Alphabet.VOICED_CONSONANTS):
+                    text+= "𐑩𐑟"
+                elif (self.shav[-1] in Alphabet.UNVOICED_CONSONANTS):
                     text += "𐑕"
                 else:
                     text += "𐑟"
                     
         return text
 
+    def html_text(self):
+        return "<ruby><rb>" + self.shavian_text() + "</rb><rt>" + self.latin_text()  + "</rt></ruby>"
+    
+
     def get_previous(self):
         if (self.text is None):
             return None
         return self.text.get_previous(self)
+
+    def get_next(self):
+        if (self.text is None):
+            return None
+        return self.text.get_next(self)
 
     
 @dataclass
@@ -215,14 +243,14 @@ class Text:
 
     def get_previous(self, token):
         if (token in self.tokens):
-            index = self.tokens.index(token)
+            index = token.index
             if (index > 0):
                 return self.tokens[index - 1]
         return None
 
     def get_next(self, token):
         if (token in self.tokens):
-            index = self.tokens.index(token)
+            index = token.index
             if (len (self.tokens) > index + 1):
                 return self.tokens[index + 1]
         return None
@@ -235,10 +263,27 @@ class Text:
     def __str__(self):
         return self.shavian_text() +"\n" + self.latin_text()
 
+    def html_text(self):
+        return "".join([token.html_text() for token in self.tokens])
+
     def add(self, token):
         new_token = copy.deepcopy(token)
         new_token.text = self
+        new_token.index = len(self.tokens)
         self.tokens.append(new_token)
+
+    def set(self, index, token):
+        new_token = copy.deepcopy(token)
+        new_token.text = self
+        new_token.index = index
+        self.tokens[index] = new_token
+
+    def is_starting(self):
+        starting = True
+        for token in self.tokens:
+            if (isinstance(token, Word)):
+                starting = False
+        return starting
 
     def read_sentence(self, text, lex):
         latin_letters = Alphabet.LATIN_LETTERS
@@ -269,35 +314,15 @@ class Text:
         items.append(item)
 
         for item in items:
-            token = lex.find_word(item)
+            token = lex.find_token_full(item, self.is_starting())
             if (token is not None):
                 self.add(token)
-                continue
-            lower_token = lex.find_word(item.lower())
-            if (lower_token is not None):
-                cap_by_position = True #are we at sentence start?
-                for token in self.tokens:
-                    if (isinstance(token, Word)):
-                        cap_by_position = False
-                if (cap_by_position):
-                    self.add(lower_token)
-                    continue
-                else:
-                    proper_token = copy.deepcopy(lower_token)
-                    proper_token.head = item
-                    proper_token.pos = Pos.PROPER_NOUN
-                    self.add(proper_token)
-                    continue
-            #handle possessives
-            if (item.endswith("'") or item.endswith("'s")):
-                #find base
-                base_head = item.split("'")[0]
-                poss_token = lex.find_word(base_head)
-                if (poss_token is not None):
-                    poss_token.possessive = True
-                    self.add(poss_token)
-                    continue
-            print (item + " not found in lexicon")
+            else:
+                #print (item + " not found in lexicon")
+                not_found_msg = "NOT_FOUND_" + item
+                punc = Punctuation(before=True, string=not_found_msg, after=True)
+                self.add(punc)
+                pass
         
         
 class Alphabet:
@@ -307,6 +332,7 @@ class Alphabet:
     SPACE_LETTERS = " "
     SIBILANTS = "𐑕𐑟𐑖𐑠𐑗𐑡"
     UNVOICED_CONSONANTS = "𐑐𐑑𐑒𐑓𐑔"
+    VOWELS = "𐑦𐑰𐑧𐑱𐑨𐑲𐑩𐑳𐑪𐑴𐑫𐑵𐑬𐑶𐑭𐑷"
     LETTER_NAMES = ("peep", "bib", "tot", "dead",
                     "kick", "gag", "fee", "vow",
                     "thigh", "they", "so", "zoo",
@@ -368,12 +394,7 @@ class Alphabet:
         
 class Lexicon:
     SKIP_TAGS = (Tag.VULGAR,Tag.DEROGATORY,Tag.PEJORATIVE,Tag.ETHNIC_SLUR)
-    EXTRAS = {
-        "zho": "𐑠𐑴",
-        "fay": "𐑓𐑱",
-        "cha": "𐑗𐑭",
-        "ha-ha": "𐑣𐑭𐑣𐑭",
-    }
+    OPEN_POS = (Pos.INTERJECTION, Pos.ADVERB, Pos.ADJECTIVE, Pos.NOUN, Pos.PROPER_NOUN, Pos.VERB)
 
     @classmethod
     def is_skipped(cls, word):
@@ -390,7 +411,7 @@ class Lexicon:
 
     """lex[Syntax_tuple][letter or 1letter] = list of words ordered by frequency
     Also wordlist[head] = word"""
-    def create_lex(self, parsedfile):
+    def read_lex(self, parsedfile):
         lex = self.lex
         wordlist = self.wordlist
         with open(parsedfile) as parsedhandle:
@@ -398,8 +419,15 @@ class Lexicon:
             skipped = 0
             parsetsv = csv.reader(parsedhandle, delimiter="\t")
             for row in parsetsv:
+                if ('#' in row[0] or len(row) < 3):
+                    continue
                 word = Word.read(row)
-                self.wordlist[word.head] = word
+                if (word.head in self.wordlist):
+                    current = self.wordlist[word.head]
+                    if (word.pos < current.pos): #store the most closed
+                        self.wordlist[word.head] = word
+                else:
+                    self.wordlist[word.head] = word
                 if (Lexicon.is_skipped(word)):
                     skipped += 1
                     continue
@@ -413,11 +441,6 @@ class Lexicon:
                     syntax[2] = tag
                     self.add_word(syntax, word)
                 #print (lettercounts, word.shav, word.head)
-
-        #manually added extras
-        for xhead in Lexicon.EXTRAS:
-            extra_word = Word(head=xhead, shav=Lexicon.EXTRAS[xhead])
-            wordlist[xhead] = extra_word
 
     def add_word(self, arg_syntax, word):
         lex = self.lex
@@ -447,7 +470,47 @@ class Lexicon:
             return copy.deepcopy(self.wordlist[head])
         else:
             return None
-            
+
+    def find_token_full(self, head, starting):
+        if (re.match("^[A-Z][A-Z]+$", head)):
+            head = head.lower()
+        if (head == "an"):
+            head = "a"
+        token = self.find_word(head)
+        if (token is not None):
+            return token
+        lower_token = self.find_word(head.lower())
+        if (lower_token is not None):
+            if (starting):
+                return lower_token
+            else:
+                proper_token = copy.deepcopy(lower_token)
+                proper_token.head = head
+                if (proper_token.freq < 5):
+                    proper_token.pos = Pos.PROPER_NOUN
+                proper_token.shav = "·" + proper_token.shav
+                return proper_token
+        #handle possessives
+        if (head.endswith("'") or head.endswith("'s")):
+            #find base
+            poss_head = head.split("'")[0]
+            poss_token = self.find_word(poss_head)
+            if (poss_token is not None):
+                poss_token.possessive = True
+                return poss_token
+            else: #proper possessives
+                lower_poss_token = self.find_word(poss_head.lower())
+                if (lower_poss_token is not None):
+                    if (starting):
+                        return lower_poss_token
+                    else:
+                        proper_lower_poss_token = copy.deepcopy(lower_poss_token)
+                        proper_lower_poss_token.head = poss_head
+                        if (proper_lower_poss_token.freq < 5):
+                            proper_lower_poss_token.pos = Pos.PROPER_NOUN
+                        proper_lower_poss_token.shav = "·" + proper_lower_poss_token.shav
+                        return proper_lower_poss_token
+        return None
 
     def get_list(self, syntax, letter):
         lex = self.lex
@@ -487,6 +550,7 @@ class Chapter:
     SENTENCE_ENDS = ".?!:"
     def __init__(self, title, text, source):
         self.title = title
+        self.parsed_title = None
         self.text = text
         self.paragraphs = [] #made of [sentence = str]
         self.parsed_texts = [] #made of [text = Text]
@@ -526,6 +590,15 @@ class Chapter:
         if (len(paragraph) > 0):
             self.paragraphs.append(paragraph)
 
+    def get_texts_as_list(self):
+        list = []
+        #list.append(self.parsed_title)
+        for paragraph in self.parsed_texts:
+            for text in paragraph:
+                list.append(text)
+        return list
+        
+
     def decompose_words_to_texts(self):
         lex = self.source.lex
         for paragraph in self.paragraphs:
@@ -535,6 +608,9 @@ class Chapter:
                 text.read_sentence(sentence, lex)
                 parsed_para.append(text)
             self.parsed_texts.append(parsed_para)
+        parsed_title = Text()
+        parsed_title.read_sentence(self.title, lex)
+        self.parsed_title = parsed_title
             
     def decompose_text(self):
         self.decompose_text_to_words()

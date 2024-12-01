@@ -5,12 +5,19 @@ import sys, re, copy, csv
 #module
 import Levenshtein
 #local
-from data import Word, Pos, Form, Tag, Text, Punctuation, Alphabet, Lexicon
+from data import Word, Pos, Form, Tag, Text, Punctuation, Alphabet, Lexicon, Source
 
-parsedfile = sys.argv[1]
+lexfile = sys.argv[1]
+sourcefile = sys.argv[2]
+source_title_regex = sys.argv[3]
         
 lex = Lexicon()
-lex.create_lex(parsedfile)
+lex.read_lex(lexfile)
+extrasfile = re.sub('/[^/]+$', '/extras.txt', lexfile)
+lex.read_lex(extrasfile)
+
+source = Source(lex)
+source.read_file(sourcefile, source_title_regex)
 
 
 def generate_title(lex, letter):
@@ -37,16 +44,18 @@ def add_new_enough_word(text, word_list):
     text.add(word_list[0])
 
 
+    
+
 #generating text!
 period = Punctuation(string=".")
-slash = Punctuation(None, "/", True)
+slash = Punctuation(string="/", before=True, after=True)
 exclamation = Punctuation(string="!")
 comma = Punctuation(string=",")
 
 for letter in Alphabet.LETTERS:
-    print (letter)
+    print ("<h1>" + letter + "</h1>")
     title = generate_title(lex, letter)
-    print (title)
+    print ("<h2>" + title.html_text() + "</h2>")
     
     letter_noun_list = lex.get_list(((Pos.NOUN, Form.SINGULAR)), letter)
     ##get some common-ish nouns
@@ -76,8 +85,98 @@ for letter in Alphabet.LETTERS:
     add_new_enough_word(sentence, letter_adj_list)
     add_new_enough_word(sentence, letter_commons[Tag.OCCUPATIONS])
     sentence.add(period)
-    print (sentence)
-                 
+    print ("<p>")
+    print (sentence.html_text())
+    print ("</p>")
+
+    letter_index = Alphabet.LETTERS.index(letter)
+    chapter = source.chapters[letter_index + 1]
+    print ("<h2>" + chapter.title + "</h2>")
+    original_catalog = {} #head: [Word, count]
+    for text in chapter.get_texts_as_list():
+        for token in text.tokens:
+            if (isinstance(token, Word)):
+                if (token.pos not in Lexicon.OPEN_POS):
+                    continue
+                head = token.head.lower()
+                if (head in original_catalog):
+                    original_catalog[head][1] += 1
+                else:
+                    original_catalog[head] = [token, 1]
+    replacements = {}
+    pos_lists = {}
+    used_replacements = set()
+        
+    for head in original_catalog:
+        old_word = original_catalog[head][0]
+        #print (old_word.shav)
+        if (letter in old_word.shav and old_word.head not in used_replacements):
+            used_replacements.add(head)
+            continue
+        #print ("replacing " + old_word.head)
+        #print (old_word)
+        new_word = None
+        pos = old_word.pos
+        form = old_word.form
+        tags = old_word.tags
+        letter_pos_list = []
+        if ((pos,form) not in pos_lists):
+            pos_lists[(pos,form)] = lex.get_list((pos,form),letter)
+        letter_pos_list = pos_lists[(pos,form)]
+        if (len(old_word.tags) > 0):
+            letter_tag_list = []
+            for tag in old_word.tags:
+                letter_tag_list.extend(lex.get_tagged_words(letter_pos_list, tag, 3000))
+            for word in letter_tag_list:
+                if (new_word is not None):
+                    continue
+                if (word.head not in used_replacements):
+                    new_word = word
+                    replacements[head] = word
+                    used_replacements.add(word.head)
+                    
+                else:
+                    #print ("skipping " + word.head + ":" + str(used_replacements))
+                    pass
+        if (new_word is None):
+            #print (len(letter_pos_list), "lpl")
+            for word in letter_pos_list:
+                #print ("checking " + word.head + " against " + str(len(used_word_heads)))
+                if (new_word is not None):
+                    #print ("new word set")
+                    continue
+                if (word.head not in used_replacements):
+                    #print ("new word found")
+                    new_word = word
+                    replacements[head] = word
+                    used_replacements.add(word.head)
+                    #print ("using possed " + new_word.head)
+                    #print(word)
+                    #print ("is?")
+                    #print(new_word)
+                else:
+                    #print ("skipping " +  word.head + ":" + str(used_replacements))
+                    pass
+                if (new_word is None):
+                    new_word = old_word
+                    used_replacements.add(head)
+        if (head in replacements):
+            #print ("replacing with " + replacements[head].head)
+            pass
+    for text in chapter.get_texts_as_list():
+        for i in range(len(text.tokens)):
+            token = text.tokens[i]
+            if (isinstance(token, Word)):
+                old_head = text.tokens[i].head.lower()
+                if (old_head in replacements):
+                    text.set(i, replacements[old_head])
+    for para in chapter.parsed_texts:
+        print ("<p>")
+        for text in para:
+            print (text.html_text())
+        print ("</p>")
+    
+        
 
 if (False):
     for letter in Alphabet.LETTERS:
